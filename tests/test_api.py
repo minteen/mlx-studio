@@ -125,13 +125,18 @@ def test_invalid_chat_parameters(client):
 
 
 def test_catalog_persistence_and_interrupted_download(tmp_path, monkeypatch):
-    def snapshot(repo, local_dir):
-        local_dir.mkdir(parents=True)
-        (local_dir / "config.json").write_text("{}")
+    def transfer(self, repo, revision, stop):
+        folder = self.path(repo)
+        folder.mkdir(parents=True)
+        (folder / "config.json").write_text("{}")
 
-    monkeypatch.setattr("mlx_studio.catalog.snapshot_download", snapshot)
+    monkeypatch.setattr(Catalog, "_transfer", transfer)
+    monkeypatch.setattr(
+        Catalog, "info", lambda self, repo, revision=None: {"total_bytes": 2, "revision": "abc"}
+    )
     catalog = Catalog(tmp_path)
     catalog.download(CHAT, "chat")
+    catalog.pool.submit(lambda: None).result(timeout=3)
     catalog.close()
     restored = Catalog(tmp_path)
     assert restored.list()[0]["status"] == "ready"

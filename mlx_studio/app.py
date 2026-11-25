@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from .catalog import Catalog
+from .catalog import Catalog, download_error
 from .protocol import Chat, response_deltas
 from .runtime import Runtime
 from .structured import GenerationError, output_schema
@@ -26,14 +26,17 @@ class Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ModelChoice(Strict):
+class ModelID(Strict):
     id: str
-    kind: Literal["chat", "embedding"]
 
     @field_validator("id")
     @classmethod
     def valid_id(cls, value):
         return Catalog.validate(value)
+
+
+class ModelChoice(ModelID):
+    kind: Literal["chat", "embedding"]
 
 
 class Kind(Strict):
@@ -68,6 +71,16 @@ def create_app(data_dir=None, api_key=None, runtime=None):
     rt = runtime or Runtime()
     catalog = Catalog(root)
     state = {"enabled": True, "requests": 0, "errors": 0, "started": time.time()}
+    operations = {}
+
+    async def model_operation(repo, action, function, *args):
+        if repo in operations:
+            raise ValueError("该模型正在处理中，请等待操作完成")
+        operations[repo] = action
+        try:
+            return await rt.call(function, *args)
+        finally:
+            operations.pop(repo, None)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -157,6 +170,7 @@ def create_app(data_dir=None, api_key=None, runtime=None):
             "errors": state["errors"],
             "uptime": int(time.time() - state["started"]),
             "platform": f"{platform.system()} {platform.machine()}",
+            "operations": dict(operations),
         }
 
     @app.get("/api/models")
@@ -167,19 +181,63 @@ def create_app(data_dir=None, api_key=None, runtime=None):
     async def search(q: str = "", kind: Literal["chat", "embedding"] | None = None):
         return await asyncio.to_thread(catalog.search, q[:200], kind)
 
+    @app.get("/api/models/info")
+    async def model_info(id: str):
+        Catalog.validate(id)
+        try:
+            return await asyncio.to_thread(catalog.info, id)
+        except Exception as exc:  # noqa: BLE001 - sanitize provider failures.
+            code, message = download_error(exc)
+            return error(message, 502, code)
+
     @app.post("/api/models/download", status_code=202)
     async def download(body: ModelChoice):
+        if body.id in operations:
+            raise ValueError("该模型正在处理中，请稍后重试")
         return catalog.download(body.id, body.kind)
+
+    @app.post("/api/models/cancel", status_code=202)
+    async def cancel_download(body: ModelID):
+        return catalog.cancel(body.id)
+
+    @app.post("/api/models/delete")
+    async def delete_model(body: ModelID):
+        # Check loaded state on the same worker as load/unload, after any queued operation.
+        def remove():
+            return catalog.delete(body.id, rt.loaded.values())
+
+        return await model_operation(body.id, "deleting", remove)
 
     @app.post("/api/models/load")
     async def load(body: ModelChoice):
-        path = catalog.ready_path(body.id, body.kind)
-        await rt.call(rt.load, body.id, body.kind, path)
+        def load_ready():
+            path = catalog.ready_path(body.id, body.kind)
+            try:
+                rt.load(body.id, body.kind, path)
+            except Exception as exc:  # noqa: BLE001 - sanitize model loader failures.
+                reason = str(exc).lower()
+                if isinstance(exc, MemoryError) or "out of memory" in reason:
+                    raise GenerationError(
+                        "内存不足，请卸载其他模型或选择更小的量化模型", "out_of_memory", 409
+                    ) from None
+                if "not supported" in reason or "unsupported" in reason:
+                    raise GenerationError(
+                        "当前运行库不支持此模型架构，请选择兼容模型", "unsupported_model", 400
+                    ) from None
+                raise GenerationError(
+                    "模型加载失败，请检查文件完整性、模型用途和可用内存",
+                    "model_load_error",
+                    422,
+                ) from None
+
+        await model_operation(body.id, "loading", load_ready)
         return {"loaded": dict(rt.loaded)}
 
     @app.post("/api/models/unload")
     async def unload(body: Kind):
-        await rt.call(rt.unload, body.kind)
+        repo = rt.loaded.get(body.kind)
+        if repo:
+            await model_operation(repo, "unloading", rt.unload, body.kind)
         return {"loaded": dict(rt.loaded)}
 
     @app.post("/api/service")
