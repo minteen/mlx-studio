@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MLX Studio · 本地智能工作台</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
+<body>
+<aside class="sidebar">
+ <a class="brand" href="/"><span class="brand-icon">m<span>✳</span></span><span>MLX <b>Studio</b><small>本地智能，无限可能</small></span></a>
+ <div class="section-label">工作空间</div>
+ <nav aria-label="主导航">
+  <button class="nav active" data-page="chat"><span>◈</span> 对话工作台 <kbd>01</kbd></button>
+  <button class="nav" data-page="models"><span>▦</span> 模型库 <kbd>02</kbd></button>
+  <button class="nav" data-page="embedding"><span>⠿</span> Embedding <kbd>03</kbd></button>
+  <button class="nav" data-page="service"><span>⌘</span> 本地服务 <kbd>04</kbd></button>
+ </nav>
+ <div class="history-heading"><span class="section-label">最近对话</span><button id="new-chat" class="icon-button" title="新建对话">＋</button></div>
+ <div id="history" class="history"></div>
+ <div class="sidebar-bottom"><span class="small-dot"></span><div>在你的设备上运行<small>隐私优先 · Apple Silicon</small></div><button id="auth-button" class="icon-button" title="设置访问密钥">⚿</button></div>
+</aside>
+<div class="workspace">
+ <header><div class="breadcrumb">工作空间 <span>/</span> <strong id="page-title">对话工作台</strong></div><div class="header-right"><span class="local-pill"><i></i> 本地运行</span><button id="refresh" class="icon-button" title="刷新状态">↻</button></div></header>
+ <main>
+  <section id="page-chat" class="page chat-page">
+   <div class="page-heading"><div><div class="eyebrow">YOUR PRIVATE INTELLIGENCE</div><h1>对话工作台<span class="label">MLX</span></h1><p>让想法在本地发生。与你的模型开始一次对话。</p></div><button id="clear-chat" class="secondary">＋ 新对话</button></div>
+   <div class="chat-layout"><div class="chat-stage"><div class="model-toolbar"><span class="small-dot"></span><select id="chat-model" aria-label="对话模型"><option value="">尚未加载对话模型</option></select><span class="tag">本地推理</span><span class="toolbar-spacer"></span><span class="muted">● 仅文本</span></div>
+    <div id="messages" class="messages" aria-live="polite"></div>
+    <form id="chat-form" class="composer"><textarea id="prompt" placeholder="发送消息，探索你的想法…" rows="3" aria-label="消息内容" required maxlength="32768"></textarea><div class="composer-footer"><span>Enter 发送 <span class="muted">· Shift + Enter 换行</span></span><button id="send" class="primary" type="submit">发送消息 ↗</button><button id="stop" class="danger hidden" type="button">停止生成 ■</button></div></form>
+    <div class="privacy-note">⌁ 对话保存在此浏览器，推理文本不会离开你的设备</div>
+   </div><aside class="settings-panel"><div class="panel-title">生成设置 <span>☷</span></div><label for="system-prompt">系统提示词</label><textarea id="system-prompt" rows="5" placeholder="你是一位乐于助人的助手。"></textarea><p class="field-help">定义模型的角色与回复风格。</p><div class="setting-label"><label for="temperature">Temperature</label><output id="temperature-value">0.7</output></div><input id="temperature" type="range" min="0" max="2" step="0.1" value="0.7"><div class="range-labels"><span>精确</span><span>创意</span></div><label for="max-tokens">最大输出 Token</label><input id="max-tokens" type="number" min="1" max="4096" value="512"><div class="settings-divider"></div><div class="panel-title">运行环境</div><div class="env-row"><span>推理引擎</span><b>Apple MLX</b></div><div class="env-row"><span>设备</span><b id="platform">检测中</b></div><div class="env-row"><span>模型来源</span><b>MLX Community</b></div><div class="tip"><span>✦</span><strong>为你的芯片而生</strong><p>利用统一内存，在 Apple Silicon 上直接运行对话与向量模型。</p><button class="text-button" data-goto="models">探索模型库 →</button></div></aside></div>
+  </section>
+  <section id="page-models" class="page hidden"><div class="page-heading"><div><div class="eyebrow">MADE FOR APPLE SILICON</div><h1>模型库 <span class="label">COMMUNITY</span></h1><p>发现、下载和管理你的本地模型。</p></div></div><div class="tabs"><button data-model-tab="discover" class="tab active">发现模型</button><button data-model-tab="local" class="tab">已下载 <span id="local-count">0</span></button></div><div class="search-row"><input id="model-query" placeholder="搜索模型名称，或粘贴 mlx-community/模型标识" aria-label="搜索模型"><select id="model-kind" aria-label="模型类型"><option value="">所有类型</option><option value="chat">对话模型</option><option value="embedding">Embedding</option></select><button id="search-models" class="primary">搜索</button></div><div id="catalog-note" class="muted">推荐从轻量模型开始。模型架构需受当前运行库支持。</div><div id="model-list" class="model-grid"></div><div class="info-note">仅支持 mlx-community 模型。下载大小随任务更新；首次加载可能需要一些时间。</div></section>
+  <section id="page-embedding" class="page hidden"><div class="page-heading"><div><div class="eyebrow">TURN LANGUAGE INTO VECTORS</div><h1>Embedding <span class="label">PLAYGROUND</span></h1><p>让文本拥有坐标。探索语义空间中的关联。</p></div></div><div class="embedding-grid"><form id="embedding-form" class="card"><div class="panel-title">文本输入 <span class="tag">每行一条</span></div><label for="embedding-model">向量模型</label><select id="embedding-model"><option value="">尚未加载向量模型</option></select><label for="embedding-input">待编码文本</label><textarea id="embedding-input" rows="10" required maxlength="65536">机器学习让计算机从数据中学习。
+人工智能可以识别数据中的规律。
+今天的天气非常适合散步。</textarea><p class="field-help">最多 32 条，每条 8192 字符；模型输入最多 512 Token。</p><button id="embed-submit" class="primary wide">生成向量 ↗</button></form><div id="embedding-result" class="card result-placeholder"><span class="empty-icon">⠿</span><h3>看见文本之间的距离</h3><p>生成后可查看向量维度、完整数值<br>与文本之间的余弦相似度。</p></div></div></section>
+  <section id="page-service" class="page hidden"><div class="page-heading"><div><div class="eyebrow">FROM LOCAL MODEL TO YOUR APPLICATION</div><h1>本地服务 <span class="label">API</span></h1><p>用熟悉的接口，将本地智能接入你的应用。</p></div><button id="toggle-service" class="primary">读取状态…</button></div><div class="stat-grid"><div class="card"><span class="muted">推理服务</span><h2 id="service-state">—</h2><span class="small-muted">HTTP 控制台始终保持可用</span></div><div class="card"><span class="muted">驻留模型</span><h2 id="loaded-count">0 <small>个</small></h2><span class="small-muted">对话与向量独立加载</span></div><div class="card"><span class="muted">推理请求</span><h2 id="request-count">0</h2><span id="error-count" class="small-muted">0 次错误</span></div></div><div class="card service-card"><div class="panel-title">连接信息 <span class="tag">OpenAI 兼容</span></div><div class="endpoint"><span>Base URL</span><code id="base-url"></code><button id="copy-url" class="secondary">复制</button></div><p class="field-help">默认仅本机可访问。局域网部署需在启动时配置监听地址和访问密钥。</p><div class="endpoint-list"><code>GET&nbsp; /v1/models</code><span>已加载模型</span><code>POST /v1/chat/completions</code><span>对话 · 支持流式</span><code>POST /v1/embeddings</code><span>文本向量</span></div></div><div class="card service-card"><div class="panel-title">快速调用 <button id="copy-example" class="secondary">复制示例</button></div><pre id="api-example"></pre></div><div class="info-note">后台托管：使用仓库内 scripts/launchd.py 生成 macOS LaunchAgent 配置。服务运行需保持 Mac 唤醒。</div></section>
+ </main><footer><span>MLX Studio <b>0.1</b></span><span id="footer-status">正在连接本地服务…</span><span>LOCAL FIRST. ALWAYS.</span></footer>
+</div>
+<div id="toast" role="status" class="toast hidden"></div>
+<dialog id="auth-dialog"><form id="auth-form"><h2>连接本地服务</h2><p>服务已启用访问保护，请输入启动时配置的密钥。<br>密钥仅保存在当前页面内存中。</p><label for="api-key">访问密钥</label><input id="api-key" type="password" autocomplete="off" placeholder="MLX_STUDIO_API_KEY"><div class="dialog-actions"><button type="button" id="cancel-auth" class="secondary">取消</button><button class="primary">连接</button></div></form></dialog>
+</body></html>

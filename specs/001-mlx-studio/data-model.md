@@ -1,0 +1,13 @@
+# Data Model
+- Model.id: 必须匹配 mlx-community/ 下的单段安全仓库名，不接受本地路径或 ..。
+- Model.kind: chat 或 embedding；搜索结果分类仅为提示，下载时用户可显式选择。
+- Model.status: downloading → ready / error；重启将未完成 downloading 标记 error，可重试。
+- Model.path: 数据目录 models/ 下按仓库名生成；不接受客户端路径。
+- Model.bytes: 非负整数，周期扫描下载目录。
+- Model.error: 可空的用户可读错误。
+- Loaded: kind → repo ID + model + tokenizer；仅固定推理线程持有 MLX 对象。
+- ChatRequest.messages: 1–128 条文本消息，role 为 system/user/assistant；每条 1–32768 字符。
+- ChatRequest.max_tokens: 1–4096；temperature: 0–2；top_p: (0,1]。
+- EmbeddingRequest.input: 非空文本或 1–32 条文本，单条最多8192字符；encoding_format 只支持 float。
+- Conversation: id/title/messages，浏览器 localStorage 保存，不存访问密钥。
+- Service: enabled（默认true）、started_at、requests、errors；驻留模型重启后需重新加载。

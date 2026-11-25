@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mlx-studio"
+version = "0.1.0"
+description = "Local MLX chat and embedding studio for Apple Silicon"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = [
+  "llguidance>=1.9,<2", "jsonschema>=4.23,<5",
+  "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "huggingface-hub>=0.34,<2",
+  "mlx-lm>=0.28,<1; sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "mlx-embeddings>=0.0.5,<1; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+
+[project.scripts]
+mlx-studio = "mlx_studio.cli:main"
+
+[project.urls]
+Repository = "https://github.com/minteen/mlx-studio"
+Issues = "https://github.com/minteen/mlx-studio/issues"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.12"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["mlx_studio"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/mlx_studio", "/tests", "/examples", "/scripts", "/specs", "/docs",
+  "/README.md", "/SECURITY.md", "/LICENSE", "/THIRD_PARTY_NOTICES.md",
+  "/pyproject.toml", "/uv.lock",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
