@@ -222,7 +222,8 @@ class Catalog:
                     if failure:
                         return failure
                     return None
-                if not process.is_alive():
+                # The child can send its result and exit between poll() and is_alive().
+                if not process.is_alive() and not receiver.poll():
                     raise RuntimeError("下载进程异常结束")
         finally:
             if started:

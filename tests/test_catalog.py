@@ -418,3 +418,43 @@ def test_model_info_endpoint_reports_sizes_and_sanitizes_failures(tmp_path, monk
         assert response.status_code == 502
         assert response.json()["error"]["code"] == "network_error"
         assert "secret-token" not in response.text
+
+
+def test_worker_exit_does_not_discard_a_result_arriving_after_first_poll(catalog, monkeypatch):
+    class Receiver:
+        polls = 0
+
+        def poll(self):
+            self.polls += 1
+            return self.polls > 1
+
+        def recv(self):
+            return None
+
+        def close(self):
+            pass
+
+    class Sender:
+        def close(self):
+            pass
+
+    class Process:
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return False
+
+        def join(self, timeout=None):
+            pass
+
+        def close(self):
+            pass
+
+    receiver = Receiver()
+    context = SimpleNamespace(
+        Pipe=lambda duplex: (receiver, Sender()), Process=lambda **kwargs: Process()
+    )
+    monkeypatch.setattr("mlx_studio.catalog.multiprocessing.get_context", lambda method: context)
+    catalog.models[REPO] = {"id": REPO, "kind": "chat", "status": "downloading"}
+    assert catalog._transfer(REPO, "fixed", threading.Event()) is None
